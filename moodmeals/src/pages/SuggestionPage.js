@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { getFoodSuggestion, getFallbackSuggestion } from '../services/foodAPI';
 import '../App.css';
 
 function SuggestionPage() {
@@ -55,13 +56,23 @@ function SuggestionPage() {
   };
 
   useEffect(() => {
-    // Simulate loading time
-    const timer = setTimeout(() => {
-      setSuggestion(foodSuggestions[mood] || foodSuggestions.happy);
+    const fetchSuggestion = async () => {
+      setIsLoading(true);
+      
+      // Try to get real API data
+      const apiSuggestion = await getFoodSuggestion(mood);
+      
+      if (apiSuggestion) {
+        setSuggestion(apiSuggestion);
+      } else {
+        // Fallback to hardcoded suggestions
+        setSuggestion(getFallbackSuggestion(mood));
+      }
+      
       setIsLoading(false);
-    }, 1000);
+    };
 
-    return () => clearTimeout(timer);
+    fetchSuggestion();
   }, [mood]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTryAgain = () => {
@@ -91,30 +102,65 @@ function SuggestionPage() {
         <p className="subtitle">Based on your {mood} mood, here's our recommendation:</p>
         
         <div className="suggestion-card">
-          <div className="food-emoji">{suggestion.emoji}</div>
+          <div className="food-image">
+            {suggestion.image && suggestion.image.startsWith('http') ? (
+              <img 
+                src={suggestion.image} 
+                alt={suggestion.name}
+                style={{
+                  width: '100%',
+                  height: '200px',
+                  objectFit: 'cover',
+                  borderRadius: '15px',
+                  marginBottom: '20px'
+                }}
+              />
+            ) : (
+              <div className="food-emoji">{suggestion.image || '🍽️'}</div>
+            )}
+          </div>
           <h3 className="food-name">{suggestion.name}</h3>
           <p className="food-description">{suggestion.description}</p>
           
-          <div className="benefits-section">
-            <h4 style={{ 
-              color: suggestion.color, 
-              marginBottom: '10px',
-              fontSize: '1.1rem',
-              fontWeight: '600'
-            }}>
-              Why this works for you:
-            </h4>
-            <p style={{ 
-              color: '#666', 
-              fontStyle: 'italic',
-              background: `${suggestion.color}15`,
-              padding: '15px',
-              borderRadius: '10px',
-              border: `1px solid ${suggestion.color}30`
-            }}>
-              {suggestion.benefits}
-            </p>
-          </div>
+          {suggestion.cookingTime && (
+            <div className="recipe-info">
+              <span className="info-item">⏱️ {suggestion.cookingTime} mins</span>
+              {suggestion.servings && (
+                <span className="info-item">👥 {suggestion.servings} servings</span>
+              )}
+            </div>
+          )}
+          
+          {suggestion.ingredients && (
+            <div className="ingredients-section">
+              <h4 style={{ color: '#667eea', marginBottom: '10px' }}>
+                🛒 Key Ingredients:
+              </h4>
+              <ul style={{ textAlign: 'left', color: '#666' }}>
+                {suggestion.ingredients.map((ingredient, index) => (
+                  <li key={index} style={{ marginBottom: '5px' }}>
+                    {ingredient}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {suggestion.sourceUrl && (
+            <a 
+              href={suggestion.sourceUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="btn"
+              style={{ 
+                display: 'inline-block',
+                marginTop: '15px',
+                textDecoration: 'none'
+              }}
+            >
+              View Full Recipe
+            </a>
+          )}
         </div>
 
         <div className="action-buttons">
